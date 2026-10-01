@@ -1,6 +1,6 @@
 # RUMI Manifesto
 
-**RUMI - Rooted Understanding, Mapping & Insight.**
+**RUMI - Roots Under My Ideas.**
 
 **Know where everything you know comes from.**
 

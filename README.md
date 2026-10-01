@@ -1,6 +1,6 @@
 # RUMI
 
-*Rooted Understanding, Mapping & Insight.*
+*Roots Under My Ideas.*
 
 **Know where everything you know comes from.**
 
