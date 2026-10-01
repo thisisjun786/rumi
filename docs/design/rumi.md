@@ -215,12 +215,12 @@ The RUMI engine does all of RUMI's work. The `rumi` CLI and the RUMI app are its
 
 RUMI runs as a local process on the user's own machine, with the vault on that machine. On LINA OS, LINA OS may offer to install RUMI as the user's own tool; LINA does not pin or ship a RUMI release. Once installed, RUMI runs as a separate process and is turned on when the user creates or connects a vault. There, its background work counts as background load in LINA's [non-competition](https://github.com/thisisjun786/lina/blob/dev/docs/design/non-competition.md) measurements.
 
-### TypeScript on Node.js with the LINA kit
+### Go with the LINA kit
 
-RUMI is written in TypeScript and runs on one Node.js runtime. It builds on the LINA kit, the stateless shared TypeScript module defined in LINA's [runtime](https://github.com/thisisjun786/lina/blob/dev/docs/design/runtime.md) contract. RUMI uses the kit's Responses adapter, loop, tool executor and sandbox wrapper, document parsing, passage anchors, citation check, and sibling protocol types.
+The RUMI engine and the `rumi` CLI are written in Go and build to a static binary per platform. They build on the LINA kit, the stateless shared Go module defined in LINA's [runtime](https://github.com/thisisjun786/lina/blob/dev/docs/design/runtime.md) contract. RUMI uses the kit's Responses adapter, loop, tool executor and sandbox wrapper, document parsing, passage anchors, citation check, and sibling protocol types.
 
-- RUMI vendors the kit as source from one LINA release tag; the kit is not published to the npm registry. RUMI records the kit version and the LINA release tag in its release manifest.
-- RUMI follows LINA's [dependency policy](https://github.com/thisisjun786/lina/blob/dev/docs/policy/dependencies.md) unchanged: npm with exact pins and a lockfile, no lifecycle scripts, signature checks, and vendored code kept unchanged with RUMI's changes in wrapping layers. Its CI enforces the policy in `foundation` from the first dependency.
+- RUMI vendors the kit as source from one LINA release tag; LINA publishes no separate release or module of the kit. RUMI records the kit version and the LINA release tag in its release manifest.
+- RUMI follows LINA's [dependency policy](https://github.com/thisisjun786/lina/blob/dev/docs/policy/dependencies.md) unchanged: Go modules with `go.mod` and `go.sum` committed, exact versions on a pinned Go toolchain, checksum database verification, `govulncheck`, and vendored code kept unchanged with RUMI's changes in wrapping layers. Its CI enforces the policy in `foundation` from the first dependency.
 - The kit has no default state path, persona, skills or database writer. RUMI passes its own vault, instructions and storage, and builds the vault, proposals, notebooks and records on top of the kit.
 - RUMI never carries LINA's persona, skills or memory.
 - Tools in RUMI's loop run through the kit's tool executor inside its sandbox. No tool writes the vault directly; every write goes through RUMI's commit path and its stale-revision check.
@@ -234,7 +234,7 @@ RUMI is written in TypeScript and runs on one Node.js runtime. It builds on the 
 
 ### Packaging
 
-The `rumi` CLI and the RUMI app ship with a verified Node.js runtime, checked against the Node.js project's signed checksums and recorded by version and digest in the release manifest. RUMI never runs on a system Node.js or on `node` from `PATH`.
+The `rumi` CLI, which also runs the engine as `rumi serve`, ships as a static binary per platform, built with the pinned Go toolchain, and the RUMI app ships with that binary. The release manifest records each artifact by version and digest.
 
 ## LINA link
 
@@ -258,7 +258,7 @@ LINA reads `.rumi/records/` as sibling records: it accepts a record only after v
 
 ### Envelope, versions and conformance
 
-- Every input and every record uses the shared envelope. The envelope and the RUMI payloads are defined in JSON Schema in LINA's [host protocol](https://github.com/thisisjun786/lina/blob/dev/docs/design/host-protocol.md); RUMI uses the TypeScript types the LINA kit generates from it.
+- Every input and every record uses the shared envelope. The envelope and the RUMI payloads are defined in JSON Schema in LINA's [host protocol](https://github.com/thisisjun786/lina/blob/dev/docs/design/host-protocol.md); RUMI uses the Go types the LINA kit generates from it.
 - `.rumi/manifest.json` declares the vault format version, the protocol version and the capability versions. The vault format (notebook files, source cards and RUMI's front matter keys) is part of the protocol. LINA accepts only combinations listed in its supported-combination table and refuses and reports any other.
 - RUMI leaves an input with an unsupported envelope version unprocessed and reports it in the app and the CLI.
 - RUMI CI runs LINA's conformance fixtures for every protocol version RUMI declares. A RUMI release declares only versions whose fixtures pass.
@@ -281,7 +281,7 @@ The same vault format works in every shape.
 
 RUMI lives in [thisisjun786/rumi](https://github.com/thisisjun786/rumi) under the [MIT License](../../LICENSE). It follows the same contribution, CI, branch and release policies as LINA and SION: the [contribution guide](../../CONTRIBUTING.md), [issues](../policy/issues.md), [pull requests](../policy/pull-requests.md), [CI](../policy/ci.md) with one required check, `foundation`, and [releases](../policy/releases.md) from `dev` with `main` as the release mirror and immutable `vX.Y.Z` tags. Issue #1 is the [roadmap](https://github.com/thisisjun786/rumi/issues/1).
 
-RUMI keeps three versions apart: its product version, the protocol version (which includes the vault format version), and the LINA kit version. Each release manifest records all three, the LINA release tag the kit came from, the bundled Node.js runtime version and digest, and every pinned external component.
+RUMI keeps three versions apart: its product version, the protocol version (which includes the vault format version), and the LINA kit version. Each release manifest records all three, the LINA release tag the kit came from, the Go toolchain that built the binaries, and every pinned external component.
 
 ## Deferred
 
