@@ -207,7 +207,7 @@ The RUMI engine does all of RUMI's work. The `rumi` CLI and the RUMI app are its
 - First run opens a vault: the user picks an existing folder or Obsidian vault, or creates a new one, and enters the model endpoint, which is set automatically on LINA OS. The app then shows what this vault can and can't do, and its header shows whether LINA is connected.
 - The main screens are the notebook home, the add-source sheet with each source's status, the notebook view in three panes (sources, answer, notes and outputs), proposals, and the digest.
 - The RUMI app is one Flutter codebase built natively for each platform, as the LINA app is. It never ships as a Flutter web build, a web-technology shell or a WebView shell, and it meets the same rules defined in LINA's [surfaces](https://github.com/thisisjun786/lina/blob/dev/docs/design/surfaces.md) contract, including platform adaptation, Korean input and accessibility.
-- The RUMI app shares the LINA app's design language and design tokens: terms, flows, the visual language, icons, and widgets such as the citation chip. On mobile, the user reaches notebooks through the LINA app.
+- The RUMI app shares the LINA app's design language and design tokens: terms, flows, the visual language, icons, and widgets such as the citation chip. It vendors LINA's design package (the token source and the shared widgets) from a LINA release tag, as it takes the LINA kit. On mobile, the user reaches notebooks through the LINA app.
 
 ## Runtime
 
@@ -291,7 +291,6 @@ RUMI keeps three versions apart: its product version, the protocol version (whic
 - The size above which a source's original is referenced by hash instead of copied: set by measurement in the understanding stage.
 - Index storage and retrieval quality bounds: set by measurement in the vault and understanding stages.
 - Digest cadence and presentation: set during digest implementation acceptance.
-- How the RUMI app takes the design tokens and shared widgets from LINA: set before the first RUMI app GUI work.
 - The local socket transport and message schema between the RUMI app and `rumi serve`, and app screen layout: set during RUMI app implementation acceptance.
 - Package formats and install locations of the `rumi` CLI and the RUMI app on each desktop OS: set by the RUMI app stage's packaging acceptance.
 - Background-load bounds for RUMI on LINA OS: declared per test in LINA's non-competition measurements.
