@@ -1,13 +1,13 @@
 # RUMI
 
-RUMI (Roots Under My Ideas) is a knowledge keeper. Its promise is **Know where everything you know comes from.** It reads what the user collects, ties every note to where it came from, connects what belongs together, and answers with the passages behind it. This contract fixes what RUMI is, how a vault is laid out, how notes keep their identity, how changes and proposals are recorded, how notebooks, sources, grounded chat, outputs, the digest and research requests behave, how RUMI runs, and how it links to LINA. It is normative: implementations follow it, and any change to it goes through a pull request against this file. Product principles live in the [manifesto](../../MANIFESTO.md); this contract doesn't restate them. Finishing this document doesn't mean any part of RUMI is implemented.
+RUMI (Roots Under My Ideas) is a knowledge keeper. Its promise is **Know where everything you know comes from.** It reads what the user collects, ties every note to where it came from, connects what belongs together, and answers with the passages behind it. This contract fixes what RUMI is, how a vault is laid out, who owns the vault format and what the manifest holds, how notes keep their identity, how changes and proposals are recorded, how notebooks, sources, grounded chat, outputs, the digest and research requests behave, how RUMI runs, and how it links to LINA. It is normative: implementations follow it, and any change to it goes through a pull request against this file. Product principles live in the [manifesto](../../MANIFESTO.md); this contract doesn't restate them. Finishing this document doesn't mean any part of RUMI is implemented.
 
 ## Scope
 
 This contract covers:
 
 - the product, its voice, and its two surfaces: the RUMI app and the `rumi` CLI
-- the vault format and layout, note identity, records and proposals
+- the vault format, which this repository owns, the vault layout and manifest, note identity, records and proposals
 - sources, notebooks, grounded chat and citations, outputs, asking the whole vault, the digest, and research requests from LINA
 - where RUMI runs, its runtime, its model endpoint and its packaging
 - the roles of the user, RUMI and LINA in a vault
@@ -15,10 +15,10 @@ This contract covers:
 
 It doesn't cover:
 
-- the envelope, the RUMI payload schemas, the supported-combination table and the conformance fixtures; they belong to LINA's [host protocol](https://github.com/thisisjun786/lina/blob/dev/docs/design/host-protocol.md)
+- the envelope, the RUMI payload kinds, the declaration that every sibling keeps, the supported-combination table and the conformance fixtures; they belong to LINA's [host protocol](https://github.com/thisisjun786/lina/blob/dev/docs/design/host-protocol.md)
 - how LINA reads a vault, verifies RUMI records and retracts deleted evidence; that belongs to LINA's [materials and knowledge](https://github.com/thisisjun786/lina/blob/dev/docs/design/materials-and-knowledge.md) and [filesystem](https://github.com/thisisjun786/lina/blob/dev/docs/design/filesystem.md) contracts
 - the contents and versioning of the LINA kit; they belong to LINA's [runtime](https://github.com/thisisjun786/lina/blob/dev/docs/design/runtime.md) contract
-- contribution, CI, branch and release process; that belongs to [docs/policy](#repository-and-releases)
+- contribution, dependency, CI, branch and release process; that belongs to [docs/policy](#repository-and-releases)
 
 ## Product
 
@@ -51,34 +51,53 @@ A vault is a Git repository of plain Markdown files that the user owns. It is RU
 | The user's folders and notes | User notes, in whatever structure the vault already has | The user; RUMI through accepted proposals or opt-in automatic apply; LINA within the scope the user granted | Every write is a commit. A write against a stale revision is rejected. The person's version wins. |
 | `notebooks/<name>.md` | One notebook: title, instructions, links to its sources and notes, links to its outputs | The user; RUMI on the user's action or on a LINA research request | A notebook is a scope, not a copy. A source in several notebooks is still one file. |
 | `sources/<rumi_id>/` | One source card: `source.md` and, when kept, a copy of the original | RUMI | See [Sources](#sources). |
-| `inbox/` | What LINA hands over: meeting notes, answers saved from LINA's conversation, files from LINA's library | LINA, new files only | RUMI files each item into a note or a source card. |
-| `.rumi/manifest.json` | Vault format version, protocol version and capability versions | RUMI | LINA reads it to decide whether it supports this vault. |
+| `inbox/` | What LINA hands over: meeting notes, answers saved from LINA's conversation, files from LINA's library | LINA, new files only | RUMI files each item into a note or a source card. See [LINA to RUMI](#lina-to-rumi-the-mailbox). |
+| `.rumi/manifest.json` | The vault id, the vault format version and RUMI's declaration | RUMI | See [Manifest](#manifest). LINA reads it to decide whether it supports this vault. |
 | `.rumi/inputs/` | Input envelopes from LINA: `focus` (what matters now), `request` (a research request) and `source_deleted` (an original LINA deleted) | LINA | RUMI reads inputs and never edits them. |
 | `.rumi/records/` | Records of what RUMI added, merged, split, marked and deleted, and the briefs it returned | RUMI | Append-only. See [Records](#records). |
 | `.rumi/proposals/` | Proposals and their reasons | RUMI | See [Proposals](#proposals-and-automatic-apply). |
 | `.rumi/index/` | The search index | RUMI | Excluded from Git. Rebuildable at any time. |
-| `.rumi/local/` | Local data that is never shared, such as notebook chat history | RUMI | Excluded from Git. Never pushed and never read by LINA. |
+| `.rumi/local/` | Local data that is never shared, such as notebook chat history and the list of RUMI's own commits | RUMI | Excluded from Git. Never pushed and never read by LINA. |
 
 `notebooks/`, `sources/`, `inbox/` and `.rumi/` are reserved paths. Every other path belongs to the user's own structure.
+
+### Vault format
+
+The vault format specification in this repository defines the vault's files: notebook files, source cards and the files inside them, front matter keys, including `rumi_id` and the keys LINA writes on `inbox/` items, the layout of `.rumi/`, the inbox filing rules, the citation and unsupported-mark syntax in saved Markdown, and the vault fields of the manifest. Each version of the specification has a vault format version. The vault stage writes vault format version 1.
+
+LINA's [host protocol](https://github.com/thisisjun786/lina/blob/dev/docs/design/host-protocol.md) schema defines the rest of what passes through the vault: the envelope, the payload kinds of inputs and records, briefs included, and the declaration that every sibling keeps. Each `rumi` protocol version names the vault format version it covers. RUMI writes a vault format version first, and LINA's sibling link work then names that version in a `rumi` protocol version.
+
+### Manifest
+
+`.rumi/manifest.json` identifies the vault and declares what RUMI speaks in it. Only RUMI writes it.
+
+| Field | Defined by | Written from | Meaning |
+| --- | --- | --- | --- |
+| Vault id | The vault format | The vault stage | The vault's identity. RUMI creates it when it first opens the folder as a vault, and it never changes. RUMI's envelopes name it as their sender, and links into the vault name it. |
+| Vault format version | The vault format | The vault stage | The version of the vault format the vault's files follow |
+| Declaration | LINA's schema for sibling declarations | The product version from the vault stage; the protocol versions and capabilities from the LINA link stage | One object: RUMI's product version, the list of `rumi` protocol versions RUMI speaks, and its capabilities |
+
+The product version is the RUMI release that last wrote the vault, which is the RUMI in charge of the vault. When a RUMI release writes a vault whose manifest names another product version, its commit updates the product version and the rest of the declaration. LINA selects the RUMI row of its supported-combination table by this product version.
 
 ### Opening a vault
 
 - RUMI opens an existing folder or Obsidian vault in place. It never moves, renames or reorganizes existing files to fit its layout, including when a reserved path name is already in use.
 - When the folder isn't a Git repository, opening it as a vault turns on version history there: RUMI initializes Git in the folder and says so.
-- RUMI's first commit in a vault creates `.rumi/manifest.json` and the ignore rule that keeps `.rumi/index/` and `.rumi/local/` out of Git.
-- The manifest names the vault format version. RUMI never writes a vault whose format version it doesn't support; it stops and reports. Moving a vault to a newer format is an explicit migration, and the migration is a commit.
+- RUMI's first commit in a vault creates `.rumi/manifest.json` with a new vault id, and the ignore rule that keeps `.rumi/index/` and `.rumi/local/` out of Git.
+- RUMI never writes a vault whose format version it doesn't support; it stops and reports. Moving a vault to a newer format is an explicit migration, and the migration is a commit.
 
 ### Derived data and secrets
 
 - The index is derived data. Deleting it loses nothing; RUMI rebuilds it from the vault. It is never the only copy of anything.
 - Model credentials, endpoint settings and other secrets never enter the vault. A vault is a Git repository that the user may push anywhere.
-- RUMI never sends a vault to shared CI runners or external servers. Note text leaves the machine only in requests to the model endpoint the user configured, and to the embedding endpoint when the user turns that adapter on. A Git remote is the user's own choice.
+- RUMI never sends a vault to shared CI runners or external servers. Vault content leaves the machine only in requests to the model endpoint the user configured, in requests to the embedding endpoint when the user turns that adapter on, and in the web queries that research sends (see [Research requests](#research-requests)). A Git remote is the user's own choice.
 
 ## Identity
 
 A note's identity is the `rumi_id` in its front matter. The identity lives in the file, so it survives renames and moves in any editor.
 
 - RUMI doesn't stamp every note when it opens a vault. A note gets a `rumi_id` when it first enters a notebook or a record. A source card gets its `rumi_id` when it is created, and its directory is named by it.
+- The `rumi_id` format is part of the vault format, so vault format version 1 fixes it in the vault stage, before the stages that create source cards, records and notebooks assign the first ids.
 - Adding a `rumi_id` touches only the note's front matter and is a commit under the stale-revision rule. It is the only write RUMI makes to a user's note without a proposal.
 - A `rumi_id` is opaque and never reused, including after its note is deleted.
 - When a file copy produces two files with the same `rumi_id`, the file that gained that `rumi_id` later in Git history is the copy, and RUMI gives it a new `rumi_id` in a commit.
@@ -91,7 +110,7 @@ LINA records `rumi_id` as a declared external key of a vault file; how LINA uses
 
 No writer owns the vault exclusively. The user, RUMI and LINA may all edit notes. Three rules hold for every writer:
 
-1. **Every change is a commit.** Commits use the vault's Git author settings, which are the user's. RUMI and LINA each tell their own commits apart by the commit hashes in their own records.
+1. **Every change is a commit.** Commits use the vault's Git author settings, which are the user's. RUMI and LINA each tell their own commits apart by the commit hashes in their own records. RUMI lists the hash of every commit it makes in `.rumi/local/`, including commits that no record states, such as the one that creates the manifest. LINA keeps the hashes of its commits in its own state.
 2. **Stale-revision writes are rejected.** A writer states the revision it read. If a file it writes differs from that revision at the current head, or has uncommitted edits in the working tree, the write is rejected. RUMI recomputes the change from the current revision, or turns it back into a proposal; it never retries the same write blindly.
 3. **The person wins.** RUMI and LINA never overwrite, revert or reformat a person's edit, committed or not. A file with uncommitted edits belongs to the person until they are committed. RUMI never commits edits another writer left uncommitted, and each RUMI commit contains only the files RUMI changed.
 
@@ -105,18 +124,20 @@ Understanding is a proposal until the user accepts it. RUMI writes its own text 
 
 ## Records
 
-A record states one change RUMI made or observed, and why. RUMI writes records to `.rumi/records/`, one envelope per record, in the shared envelope format defined by LINA's [host protocol](https://github.com/thisisjun786/lina/blob/dev/docs/design/host-protocol.md). Records are append-only: RUMI never edits or removes a committed record.
+A record states one change RUMI made or observed, or the outcome of one input from LINA, and why. RUMI writes records to `.rumi/records/`, one envelope per record, in the shared envelope format defined by LINA's [host protocol](https://github.com/thisisjun786/lina/blob/dev/docs/design/host-protocol.md). Records are append-only: RUMI never edits or removes a committed record.
 
 | Kind | Written when |
 | --- | --- |
-| add | RUMI files an item, such as an `inbox/` item or a new source, into a note, a source card or a notebook. |
+| add | RUMI files an item, such as an `inbox/` item or a new source, into a note, a source card or a notebook, or writes a digest note. |
 | merge | A merge is applied. Both histories stay in Git, and the record names both `rumi_id` values. |
 | split | A split is applied. The record names the original `rumi_id` and every new one. |
 | mark | RUMI marks a note: stale, contradicted by a newer source, original updated, original unreachable, or original deleted. |
 | delete | A commit by any writer removes a note that has a `rumi_id`, or a source card. |
 | brief | RUMI finishes a LINA research request. See [Research requests](#research-requests). |
 
-Every record names the commit that carries the change, the affected `rumi_id` values and paths, and the reason. A record is written only after its commit exists, so a reader can verify the commit before trusting the record.
+A record of a change names the commit that carries it, the affected `rumi_id` values and paths, and the reason, and its `effect_state` is `applied`. A record is written only after its commit exists, so a reader can verify the commit before trusting the record.
+
+Each input LINA hands over, an `inbox/` item or a `request`, gets exactly one result record. It is the record of what RUMI did with the input, such as its `add` or its `brief`, or a record whose `effect_state` is `refused` or `failed` and whose `error` says why, for example when the model endpoint can't be reached. A refused or failed record names the input it answers, so LINA stops waiting for RUMI on that input and shows the reason. RUMI also shows refused and failed inputs in the app and the CLI. The payload kinds of these records are defined in LINA's [host protocol](https://github.com/thisisjun786/lina/blob/dev/docs/design/host-protocol.md).
 
 A mark lives only in `.rumi/`. It never changes a note's body or front matter; assigning a `rumi_id` is the only change RUMI makes to front matter on its own (see [Identity](#identity)). RUMI shows marks next to the note and, for stale or contradicting notes, next to the newer source. The user may dismiss a mark; the dismissal is committed in `.rumi/`.
 
@@ -171,7 +192,7 @@ Outputs are text built from a notebook's scope, such as briefings, study guides 
 
 ## Digest
 
-The digest is a short list of what is new, what is out of date, and what to read next. Every item has a reason and links to its notes and sources. The digest is an output of the vault and is written to the vault as a note.
+The digest is a short list of what is new, what is out of date, and what to read next. Every item has a reason and links to its notes and sources. The digest is an output of the vault and is written to the vault as a note. When RUMI writes a digest note, it writes an `add` record that names the note, so LINA verifies the digest like any other record before it shows it.
 
 When LINA is connected, the latest `focus` input in `.rumi/inputs/` raises the priority of related items. Without LINA, RUMI orders the digest from the vault alone. LINA shows the latest digest in its today feed as a card labeled RUMI; that card is defined in LINA's [surfaces](https://github.com/thisisjun786/lina/blob/dev/docs/design/surfaces.md) contract.
 
@@ -182,6 +203,10 @@ RUMI does the knowledge work that LINA hands over. A research request is a `requ
 1. RUMI opens the target notebook, or creates it when the request names a new one.
 2. RUMI gathers sources for the question into the notebook as source cards, from the vault and from the web, reads them, and organizes what it finds into notes under the rules for sources, notes and proposals.
 3. RUMI writes the brief as an output of the notebook and returns it to LINA as a `brief` record.
+
+When RUMI refuses or fails a request, it returns a refused or failed record instead of a brief (see [Records](#records)).
+
+Web gathering uses the web search tool that the model endpoint offers, when it offers one, and otherwise the kit's fetch tool. A request from LINA runs without a person, so the network it uses comes from a standing grant that the person turns on in RUMI's settings. The person can revoke the grant at any time, and RUMI records when it is granted and revoked.
 
 A brief is a short answer to the question, grounded in the notebook:
 
@@ -197,14 +222,16 @@ The RUMI engine does all of RUMI's work. The `rumi` CLI and the RUMI app are its
 
 ### Engine and CLI
 
-- `rumi` is the terminal interface to the engine. It opens or initializes a vault, adds sources, asks a notebook or the whole vault, reviews proposals, shows the digest, rebuilds the index, and runs the engine for the app with `rumi serve`.
+- `rumi` is the terminal interface to the engine. It opens or initializes a vault, shows a vault's status, adds sources, asks a notebook or the whole vault, reviews proposals, shows the digest, rebuilds the index, and runs the engine with `rumi serve`.
+- The vault stage's CLI opens or initializes a vault, shows its status (vault id, vault format version, product version, uncommitted files and index state) and rebuilds the index. Each other command arrives with the stage that builds its function.
 - One engine writes a vault at a time. While `rumi serve` runs, CLI commands that write go through it.
 
 ### RUMI app
 
 - The RUMI app is a desktop app for Linux, macOS and Windows. It is a thin client: it shows and asks, and every write goes through the engine.
 - It talks to `rumi serve` over a local socket. The messages are defined in JSON Schema, and the app's Dart types are generated from it.
-- First run opens a vault: the user picks an existing folder or Obsidian vault, or creates a new one, and enters the model endpoint, which is set automatically on LINA OS. The app then shows what this vault can and can't do, and its header shows whether LINA is connected.
+- First run opens a vault: the user picks an existing folder or Obsidian vault, or creates a new one, and enters the model endpoint. On LINA OS, LINA OS sets the endpoint to opencodex when it installs RUMI. The app then shows what this vault can and can't do, and its header shows whether LINA is connected. RUMI has no runtime signal from LINA, so the header reads the link from the vault: LINA counts as connected when the vault's history holds input from LINA, either envelopes in `.rumi/inputs/` or items LINA wrote to `inbox/`, including items RUMI has since filed.
+- "From LINA library" opens the LINA app's library picker through a link that the operating system opens in the LINA app. LINA writes the picked items to `inbox/`, and RUMI turns them into source cards (see [Sources](#sources)).
 - The main screens are the notebook home, the add-source sheet with each source's status, the notebook view in three panes (sources, answer, notes and outputs), proposals, and the digest.
 - The RUMI app is one Flutter codebase built natively for each platform, as the LINA app is. It never ships as a Flutter web build, a web-technology shell or a WebView shell, and it meets the same rules defined in LINA's [surfaces](https://github.com/thisisjun786/lina/blob/dev/docs/design/surfaces.md) contract, including platform adaptation, Korean input and accessibility.
 - The RUMI app shares the LINA app's design language and design tokens: terms, flows, the visual language, icons, and widgets such as the citation chip. It vendors LINA's design package (the token source and the shared widgets) from a LINA release tag, as it takes the LINA kit. On mobile, the user reaches notebooks through the LINA app.
@@ -213,17 +240,22 @@ The RUMI engine does all of RUMI's work. The `rumi` CLI and the RUMI app are its
 
 ### Runs on the user's machine
 
-RUMI runs as a local process on the user's own machine, with the vault on that machine. On LINA OS, LINA OS may offer to install RUMI as the user's own tool; LINA does not pin or ship a RUMI release. Once installed, RUMI runs as a separate process and is turned on when the user creates or connects a vault. There, its background work counts as background load in LINA's [non-competition](https://github.com/thisisjun786/lina/blob/dev/docs/design/non-competition.md) measurements.
+RUMI runs as a local process on the user's own machine, with the vault on that machine.
+
+- The engine, `rumi serve`, runs as the user's own service under the operating system's service manager once the user opens a vault, so it keeps sources current, handles LINA's input and writes the digest while the RUMI app is closed. The app and the CLI use the running engine.
+- The engine notices input through the vault's commits. It watches the vault, reads `inbox/` and `.rumi/inputs/` when a commit adds files there, and on start reads whatever arrived while it was stopped.
+- On LINA OS, LINA OS may offer to install RUMI as the user's own tool; LINA does not pin or ship a RUMI release. Once installed, RUMI runs as its own service when the user creates or connects a vault. There, its background work counts as background load in LINA's [non-competition](https://github.com/thisisjun786/lina/blob/dev/docs/design/non-competition.md) measurements.
 
 ### Go with the LINA kit
 
 The RUMI engine and the `rumi` CLI are written in Go and build to a static binary per platform. They build on the LINA kit, the stateless shared Go module defined in LINA's [runtime](https://github.com/thisisjun786/lina/blob/dev/docs/design/runtime.md) contract. RUMI uses the kit's Responses adapter, loop, tool executor and sandbox wrapper, document parsing, passage anchors, citation check, and sibling protocol types.
 
-- RUMI vendors the kit as source from one LINA release tag; LINA publishes no separate release or module of the kit. RUMI records the kit version and the LINA release tag in its release manifest.
-- RUMI follows LINA's [dependency policy](https://github.com/thisisjun786/lina/blob/dev/docs/policy/dependencies.md) unchanged: Go modules with `go.mod` and `go.sum` committed, exact versions on a pinned Go toolchain, checksum database verification, `govulncheck`, and vendored code kept unchanged with RUMI's changes in wrapping layers. Its CI enforces the policy in `foundation` from the first dependency.
+- The kit is the Go module `github.com/thisisjun786/lina/kit`, in the `kit/` directory of the LINA repository. It ships only as source in LINA release tags; LINA publishes no separate release or module of the kit. RUMI vendors it as source from one LINA release tag into `third_party/`, and a `replace` entry in RUMI's `go.mod` points the module path to the vendored tree. RUMI records the kit version and the LINA release tag in its release manifest.
+- RUMI follows LINA's dependency policy unchanged: Go modules with `go.mod` and `go.sum` committed, exact versions on a pinned Go toolchain, checksum database verification, `govulncheck`, and vendored code kept unchanged with RUMI's changes in wrapping layers. What the policy covers in this repository is in RUMI's [dependency policy](../policy/dependencies.md). Its CI enforces the policy in `foundation` from the first dependency.
 - The kit has no default state path, persona, skills or database writer. RUMI passes its own vault, instructions and storage, and builds the vault, proposals, notebooks and records on top of the kit.
 - RUMI never carries LINA's persona, skills or memory.
 - Tools in RUMI's loop run through the kit's tool executor inside its sandbox. No tool writes the vault directly; every write goes through RUMI's commit path and its stale-revision check.
+- On Windows, the kit's sandbox is verified as part of LINA's Windows Node acceptance. Until it is verified, tools in RUMI's loop report unsupported on Windows instead of running unsandboxed, and the features that need them say so.
 - Search runs on the local index and needs no service other than the model endpoint. Embeddings are optional: when the user turns on the embedding adapter, a separate non-chat adapter to an embedding endpoint the user configures, the index adds vectors. Without it, search uses full-text search alone.
 
 ### Model endpoint
@@ -234,7 +266,7 @@ The RUMI engine and the `rumi` CLI are written in Go and build to a static binar
 
 ### Packaging
 
-The `rumi` CLI, which also runs the engine as `rumi serve`, ships as a static binary per platform, built with the pinned Go toolchain, and the RUMI app ships with that binary. The release manifest records each artifact by version and digest.
+The `rumi` CLI, which also runs the engine as `rumi serve`, ships as a static binary per platform, built with the pinned Go toolchain. The RUMI app is built with the pinned Flutter toolchain and ships with that binary. The release manifest records each artifact by version and digest.
 
 ## LINA link
 
@@ -246,7 +278,10 @@ LINA reads the vault as a connected source. It doesn't copy the vault; the user'
 
 ### LINA to RUMI: the mailbox
 
-- **`inbox/`:** LINA writes new files only, each as a commit: meeting notes, answers saved from LINA's conversation, and files from LINA's library. Front matter names the origin conversation or meeting, the target notebook, the citation anchors the item carries and, for an item from LINA's library, its LINA asset id and revision. RUMI files each item into a note or a source card in the target notebook, moves it out of `inbox/` in the same commit, and writes an add record.
+- **`inbox/`:** LINA writes new files only, each as a commit: meeting notes, answers saved from LINA's conversation, and files from LINA's library. Each item's front matter names its LINA asset id and revision, where it came from (the conversation, meeting or library item), when it was created, the target notebook when one was chosen, and the passage anchors of its citations. These are the same fields as in LINA's [materials and knowledge](https://github.com/thisisjun786/lina/blob/dev/docs/design/materials-and-knowledge.md) contract; the exact keys are part of the vault format.
+  - RUMI files each item into a note or a source card, moves it out of `inbox/` in the same commit, and writes its result record (see [Records](#records)).
+  - An item with a target notebook is filed into that notebook. An item without one is filed where the vault's inbox filing rules place it, outside any notebook.
+  - A non-text file arrives with a Markdown companion that carries its front matter. RUMI treats the pair as one item and files it as one source card.
 - **`.rumi/inputs/`:** LINA writes input envelopes of three kinds: `focus`, what matters now (goals, projects and work in progress), which RUMI uses to order the digest; `request`, a research request that RUMI answers with a brief (see [Research requests](#research-requests)); and `source_deleted`, a notice that LINA permanently deleted an original, such as a meeting recording. On a `source_deleted` input, RUMI marks the notes built from that original as original deleted.
 - **Note edits:** LINA may edit existing notes within the scope the user granted, under the rules in [Roles and writes](#roles-and-writes).
 
@@ -258,14 +293,14 @@ LINA reads `.rumi/records/` as sibling records: it accepts a record only after v
 
 ### Envelope, versions and conformance
 
-- Every input and every record uses the shared envelope. The envelope and the RUMI payloads are defined in JSON Schema in LINA's [host protocol](https://github.com/thisisjun786/lina/blob/dev/docs/design/host-protocol.md); RUMI uses the Go types the LINA kit generates from it.
-- `.rumi/manifest.json` declares the vault format version, the protocol version and the capability versions. The vault format (notebook files, source cards and RUMI's front matter keys) is part of the protocol. LINA accepts only combinations listed in its supported-combination table and refuses and reports any other.
-- RUMI leaves an input with an unsupported envelope version unprocessed and reports it in the app and the CLI.
-- RUMI CI runs LINA's conformance fixtures for every protocol version RUMI declares. A RUMI release declares only versions whose fixtures pass.
+- Every input and every record uses the shared envelope. The envelope, the RUMI payloads and the declaration are defined in JSON Schema in LINA's [host protocol](https://github.com/thisisjun786/lina/blob/dev/docs/design/host-protocol.md); RUMI uses the Go types the LINA kit generates from it.
+- `.rumi/manifest.json` carries the vault id, the vault format version and the declaration (see [Manifest](#manifest)). Each `rumi` protocol version names the vault format version it covers (see [Vault format](#vault-format)). LINA accepts only combinations listed in its supported-combination table and refuses and reports any other.
+- RUMI answers an input whose envelope version it doesn't support with a `refused` record, in an envelope version it speaks, that names the input. It never processes that input.
+- RUMI vendors LINA's conformance fixtures from the same LINA release tag as the kit and records their content digests. RUMI CI runs them for every protocol version RUMI declares. A RUMI release declares only versions whose fixtures pass.
 
 ### Speaker boundary and handoffs
 
-In LINA's conversation only LINA speaks. RUMI's results, such as briefs, the digest and add records, appear there only as cards labeled RUMI. From LINA's conversation, the user can attach a notebook, save an answer to a notebook, and open a passage in RUMI. LINA answers over an attached notebook with its own engine, so it works when RUMI isn't running; both use the kit, so passage selection and citation format match. These handoffs are defined in LINA's [surfaces](https://github.com/thisisjun786/lina/blob/dev/docs/design/surfaces.md) and [materials and knowledge](https://github.com/thisisjun786/lina/blob/dev/docs/design/materials-and-knowledge.md) contracts. Opening in RUMI is a link the operating system opens in the RUMI app, not an API call.
+In LINA's conversation only LINA speaks. RUMI's results, such as briefs, the digest and add records, appear there only as cards labeled RUMI. From LINA's conversation, the user can attach a notebook, save an answer to a notebook, and open a passage in RUMI. LINA answers over an attached notebook with its own engine, so it works when RUMI isn't running; both use the kit, so passage selection and citation format match. These handoffs are defined in LINA's [surfaces](https://github.com/thisisjun786/lina/blob/dev/docs/design/surfaces.md) and [materials and knowledge](https://github.com/thisisjun786/lina/blob/dev/docs/design/materials-and-knowledge.md) contracts. Opening in RUMI is a link the operating system opens in the RUMI app, not an API call. The link names the vault id, the `rumi_id` and the passage anchor.
 
 ## Installation shapes
 
@@ -279,18 +314,19 @@ The same vault format works in every shape.
 
 ## Repository and releases
 
-RUMI lives in [thisisjun786/rumi](https://github.com/thisisjun786/rumi) under the [MIT License](../../LICENSE). It follows the same contribution, CI, branch and release policies as LINA and SION: the [contribution guide](../../CONTRIBUTING.md), [issues](../policy/issues.md), [pull requests](../policy/pull-requests.md), [CI](../policy/ci.md) with one required check, `foundation`, and [releases](../policy/releases.md) from `dev` with `main` as the release mirror and immutable `vX.Y.Z` tags. Issue #1 is the [roadmap](https://github.com/thisisjun786/rumi/issues/1).
+RUMI lives in [thisisjun786/rumi](https://github.com/thisisjun786/rumi) under the [MIT License](../../LICENSE). It follows the same contribution, dependency, CI, branch and release policies as LINA and SION: the [contribution guide](../../CONTRIBUTING.md), [issues](../policy/issues.md), [pull requests](../policy/pull-requests.md), [dependencies](../policy/dependencies.md), [CI](../policy/ci.md) with one required check, `foundation`, and [releases](../policy/releases.md) from `dev` with `main` as the release mirror and immutable `vX.Y.Z` tags. Issue #1 is the [roadmap](https://github.com/thisisjun786/rumi/issues/1).
 
-RUMI keeps three versions apart: its product version, the protocol version (which includes the vault format version), and the LINA kit version. Each release manifest records all three, the LINA release tag the kit came from, the Go toolchain that built the binaries, and every pinned external component.
+RUMI keeps four versions apart: its product version, the vault format version, the `rumi` protocol versions it declares (each naming the vault format version it covers), and the LINA kit version. Each release manifest records all four, the LINA release tag the kit and the conformance fixtures came from, the version of LINA's design package and the LINA release tag it came from, the Go toolchain that built the binaries, the Flutter toolchain that built the app, and every pinned external component.
 
 ## Deferred
 
-- Exact front matter keys, file names inside a source card, the manifest schema, the citation and unsupported-mark syntax in saved Markdown, and the default location of outputs and digests: set by the vault format version 1 specification in the vault stage.
-- The `rumi_id` format: set by the vault stage.
+- Exact front matter keys, file names inside a source card, the manifest's vault fields, the formats of the vault id and of `rumi_id`, the citation and unsupported-mark syntax in saved Markdown, the inbox filing rules, and the default location of outputs and digests: set by the vault format version 1 specification in the vault stage.
 - Handling of an existing vault whose folders already use a reserved path name: set by the vault stage's acceptance on real vaults.
 - The size above which a source's original is referenced by hash instead of copied: set by measurement in the understanding stage.
 - Index storage and retrieval quality bounds: set by measurement in the vault and understanding stages.
 - Digest cadence and presentation: set during digest implementation acceptance.
 - The local socket transport and message schema between the RUMI app and `rumi serve`, and app screen layout: set during RUMI app implementation acceptance.
-- Package formats and install locations of the `rumi` CLI and the RUMI app on each desktop OS: set by the RUMI app stage's packaging acceptance.
+- Package formats and install locations of the `rumi` CLI and the RUMI app, and how `rumi serve` registers with the service manager, on each desktop OS: set by the RUMI app stage's packaging acceptance.
+- Publishing binaries and the release manifest: added to the [release policy](../policy/releases.md) when the RUMI app is packaged.
+- The format of the "Open in RUMI" link (vault id, `rumi_id` and passage anchor) and of the link that the RUMI app's "From LINA library" hands to the LINA app: set together with LINA during the RUMI app stage.
 - Background-load bounds for RUMI on LINA OS: declared per test in LINA's non-competition measurements.
