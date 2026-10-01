@@ -44,7 +44,7 @@ When RUMI does not know, it says so and shows what is missing.
 
 ## Alongside LINA
 
-RUMI works on its own. Connected to [LINA](https://github.com/thisisjun786/lina), it takes LINA's sense of what matters now as input and reports back what it filed, merged, or flagged, so what you work out in conversation lands where you can find it again. Neither owns the other. You, RUMI, and LINA can all edit your notes, and every change stays in history.
+RUMI works on its own. Connected to [LINA](https://github.com/thisisjun786/lina), it takes LINA's sense of what matters now as input and reports back what it filed, merged, or flagged, so what you work out in conversation lands where you can find it again. When LINA hands it a question, RUMI researches it inside a notebook and returns a cited brief. The sources stay in that notebook, where you can keep working with them. Neither owns the other. You, RUMI, and LINA can all edit your notes, and every change stays in history.
 
 ## Family
 

@@ -70,6 +70,56 @@ Use the actionlint version pinned in the workflow. During iteration, run the aff
 
 Introduce a new component together with its real verification commands, path mapping, and gate expectations. Tests must exercise the behavior being changed; bug fixes need a regression that fails without the fix. Build/install checks should use the produced artifact. Share commands between local and CI execution, and avoid running the same suite again in an aggregator. Cache downloads and reproducible build inputs, not previous pass/fail results.
 
+## Go components
+
+The RUMI engine and the `rumi` CLI are Go packages in the repository's Go module, built with the toolchain that the `toolchain` line of `go.mod` names. `go build` produces the static binary; there is no other build step. The [dependency policy](dependencies.md) governs what the module may require, and the `dependencies` check enforces it.
+
+### Registration
+
+Register a component in [ci-scope.mjs](../../.github/scripts/ci-scope.mjs) in the PR that adds it. Its entry names:
+
+- its directory, so that every path under it, including Markdown, belongs to the component;
+- its packages, which CI verifies with `go build`, `go vet`, the `exhaustive` analyzer and `go test`, so local and CI verification use the same commands.
+
+Switches over closed sets of variants, such as record kinds and effect states, name every variant, and the `exhaustive` analyzer fails a switch that misses one. The analyzer is a Go tool pinned in `go.mod`, like `govulncheck`.
+
+A JSON Schema that types are generated from, such as the one between the RUMI app and `rumi serve`, is registered with the component that generates types from it, so a schema change runs type regeneration, and CI fails on any difference from the committed types.
+
+The scope script reads the imports between components from the Go packages, so a change to one component also selects every component that depends on it. Until a component is registered, its paths remain unmapped and `foundation` refuses to pass. Register a vendored tree under `third_party/<name>/` the same way as any other component. `go test` runs its upstream tests unchanged, and the vendored LINA conformance fixtures run in the component that uses the kit's protocol types.
+
+The RUMI app follows the CI component and generation rules that LINA's CI policy gains for the Flutter app with the first LINA app implementation.
+
+### Path mapping
+
+| Change | Selection |
+| --- | --- |
+| A path under a registered component directory | `components` for that component and its dependents. |
+| A path under `third_party/<name>/` | `dependencies`, plus `components` for that tree and its dependents. |
+| `go.mod`, `go.sum` or a Go workspace file, or a root `package.json` or `package-lock.json` | `dependencies`, plus `components` for every component. |
+| `.github/dependency-exceptions.json` | `dependencies`. |
+| `THIRD-PARTY-NOTICES.md` | `docs` and `dependencies`. |
+
+Markdown under `third_party/` is upstream content. The docs check skips it because its relative links point into the upstream repository.
+
+### Jobs
+
+`dependencies` and `components` run after `selection`, in parallel with `docs` and `automation`. Selection lists the selected components. `foundation` evaluates both jobs like the others: a selected job must report `success`, and an unselected job must report `skipped`.
+
+- **dependencies:** runs the checks of the [dependency policy](dependencies.md#the-dependencies-check), including `go mod verify` and `govulncheck`. It has no secrets and reads only the Go module proxy, the Go checksum and vulnerability databases, the npm registry when repository tooling has an npm package, and recorded upstream repositories.
+- **components:** sets up Go from the `toolchain` line of `go.mod` and runs `go build`, `go vet`, the `exhaustive` analyzer and `go test` with `-mod=readonly` for each selected component. Build checks use the produced binary. Short component checks share this job and its module download. A component gets its own parallel job only when a measured run shows that the shared job is the bottleneck.
+
+Both jobs cache Go module downloads by the hash of `go.sum`, never results, including the test results the `go` command caches. Adding either job changes the full-mode run, so the PR that registers the first component records a new full-mode baseline and bound in the timing table.
+
+```sh
+go mod verify
+go tool govulncheck ./...
+node .github/scripts/check-dependencies.mjs
+go build ./<dir>/...
+go vet ./<dir>/...
+go tool exhaustive ./<dir>/...
+go test ./<dir>/...
+```
+
 ## Boundaries and releases
 
 Verification uses read-only tokens and disposable runners. Only the metadata-only PR-closing job has pull-request write permission; it does not check out contributor code. Do not expose account secrets, personal data, or production services to PR code. Actual model/provider calls and subjective quality evaluations run separately in explicitly authorized environments.
